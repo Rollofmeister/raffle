@@ -1,0 +1,16 @@
+test:
+  service: Disk
+  root: <%= Rails.root.join("tmp/storage") %>
+
+local:
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+cloudflare_r2:
+  service: S3
+  access_key_id: <%= ENV["CLOUDFLARE_R2_ACCESS_KEY_ID"] %>
+  secret_access_key: <%= ENV["CLOUDFLARE_R2_SECRET_ACCESS_KEY"] %>
+  region: auto
+  bucket: <%= ENV["CLOUDFLARE_R2_BUCKET"] %>
+  endpoint: <%= ENV["CLOUDFLARE_R2_ENDPOINT"] %>
+  force_path_style: true

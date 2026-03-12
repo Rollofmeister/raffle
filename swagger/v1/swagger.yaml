@@ -1,0 +1,448 @@
+---
+openapi: 3.0.1
+info:
+  title: Raffle API
+  version: v1
+  description: API para gerenciamento de rifas baseadas na Loteria Federal brasileira
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- bearerAuth: []
+servers:
+- url: http://localhost:3000
+  description: Development
+paths:
+  "/api/v1/auth/register":
+    post:
+      summary: Register a new user
+      tags:
+      - Authentication
+      security: []
+      parameters:
+      - name: X-Organization-Id
+        in: header
+        required: true
+        description: Organization ID
+        schema:
+          type: string
+      responses:
+        '201':
+          description: user registered
+        '422':
+          description: duplicate email in same organization
+        '404':
+          description: organization not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  example: john@example.com
+                password:
+                  type: string
+                  example: password123
+                phone:
+                  type: string
+                  example: "+5511999999999"
+              required:
+              - name
+              - email
+              - password
+  "/api/v1/auth/login":
+    post:
+      summary: Login
+      tags:
+      - Authentication
+      security: []
+      parameters:
+      - name: X-Organization-Id
+        in: header
+        required: true
+        description: Organization ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: login successful
+        '401':
+          description: user from another organization
+        '404':
+          description: organization not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: john@example.com
+                password:
+                  type: string
+                  example: password123
+              required:
+              - email
+              - password
+  "/api/v1/organization/update_logo":
+    put:
+      summary: Upload organization logo
+      tags:
+      - Organization
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: logo uploaded
+        '401':
+          description: unauthorized
+        '403':
+          description: forbidden (not admin)
+        '422':
+          description: no file provided
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: file
+        required: true
+        description: Logo image file (will be converted to webp)
+  "/api/v1/organization/destroy_logo":
+    delete:
+      summary: Remove organization logo
+      tags:
+      - Organization
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: logo removed
+        '401':
+          description: unauthorized
+        '403':
+          description: forbidden (not admin)
+  "/api/v1/raffles":
+    get:
+      summary: List raffles
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: participant sees only open raffles
+        '401':
+          description: unauthorized
+    post:
+      summary: Create a raffle
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: raffle created with prizes
+        '422':
+          description: draw_date in the past
+        '403':
+          description: forbidden for participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                ticket_price:
+                  type: string
+                draw_mode:
+                  type: string
+                  enum:
+                  - centena
+                  - milhar
+                  - dezena_de_milhar
+                draw_date:
+                  type: string
+                  format: date
+                lottery_id:
+                  type: integer
+                raffle_prizes_attributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      position:
+                        type: integer
+                      description:
+                        type: string
+                      lottery_prize_position:
+                        type: integer
+              required:
+              - title
+              - ticket_price
+              - draw_mode
+              - draw_date
+              - lottery_id
+  "/api/v1/raffles/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    get:
+      summary: Show a raffle
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: raffle found with prizes
+        '404':
+          description: not found
+        '401':
+          description: unauthorized
+    patch:
+      summary: Update a raffle
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: draw_mode silently ignored when open
+        '422':
+          description: cannot update closed raffle
+        '403':
+          description: forbidden for participants
+        '404':
+          description: not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                ticket_price:
+                  type: string
+                draw_date:
+                  type: string
+                draw_mode:
+                  type: string
+                raffle_prizes_attributes:
+                  type: array
+                  items:
+                    type: object
+    delete:
+      summary: Delete a raffle (draft only)
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: draft raffle deleted
+        '422':
+          description: cannot delete non-draft raffle
+        '403':
+          description: forbidden for participants
+        '404':
+          description: not found
+  "/api/v1/raffles/{id}/open":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    post:
+      summary: Open a raffle (draft → open)
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: raffle opened
+        '422':
+          description: already open or invalid transition
+        '403':
+          description: forbidden for participants
+        '404':
+          description: not found
+  "/api/v1/raffles/{id}/close":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    post:
+      summary: Close a raffle (open → closed)
+      tags:
+      - Raffles
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: raffle closed
+        '422':
+          description: not open, cannot close
+        '403':
+          description: forbidden for participants
+        '404':
+          description: not found
+  "/api/v1/super_admin/organizations":
+    get:
+      summary: List all organizations
+      tags:
+      - SuperAdmin - Organizations
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: organizations listed
+        '401':
+          description: unauthorized
+        '403':
+          description: forbidden (not super_admin)
+    post:
+      summary: Create an organization
+      tags:
+      - SuperAdmin - Organizations
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: organization created
+        '422':
+          description: duplicate slug
+        '401':
+          description: unauthorized
+        '403':
+          description: forbidden (not super_admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Acme Corp
+                slug:
+                  type: string
+                  example: acme-corp
+                owner_email:
+                  type: string
+                  example: owner@acme.com
+                phone:
+                  type: string
+                  example: "+5511999999999"
+                status:
+                  type: string
+                  enum:
+                  - pending
+                  - active
+                  - suspended
+                  example: active
+              required:
+              - name
+              - slug
+              - owner_email
+  "/api/v1/super_admin/organizations/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Show an organization
+      tags:
+      - SuperAdmin - Organizations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: organization found
+        '404':
+          description: not found
+    patch:
+      summary: Update an organization
+      tags:
+      - SuperAdmin - Organizations
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: organization updated
+        '404':
+          description: not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - pending
+                  - active
+                  - suspended
+    delete:
+      summary: Soft-delete an organization
+      tags:
+      - SuperAdmin - Organizations
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: organization deleted
+        '404':
+          description: not found

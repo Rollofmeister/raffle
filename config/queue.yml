@@ -1,0 +1,23 @@
+default: &default
+  dispatchers:
+    - polling_interval: 1
+      batch_size: 500
+      recurring_tasks:
+        check_pending_draws:
+          class: CheckPendingDrawsJob
+          schedule: every 5 minutes
+          queue: default
+  workers:
+    - queues: "*"
+      threads: 3
+      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      polling_interval: 0.1
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

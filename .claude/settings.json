@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r 'select(.tool_input.file_path | strings | endswith(\".rb\")) | .tool_input.file_path' | xargs -r -I{} sh -c 'cd /home/luiz/Documents/raffle && bundle exec rubocop --autocorrect-all \"{}\" 2>&1 | tail -5'"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://raffle:raffle@localhost/raffle_development"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    }
+  }
+}
